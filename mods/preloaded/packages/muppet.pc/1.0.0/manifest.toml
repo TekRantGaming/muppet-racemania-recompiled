@@ -1,0 +1,25 @@
+format_version = 5
+id = "muppet.pc"
+version = "1.0.0"
+name = "PC Compatibility"
+author = "TekRantGaming"
+description = "Makes Muppet RaceMania run on the bundled OpenBIOS: the BIOS free() call behaves as on a real PlayStation."
+resolver = "declarative"
+save_compatibility = "shared"
+
+[[target]]
+game_id = "SLUS-01237"
+
+[[target]]
+game_id = "SCES-02008"
+
+[[feature]]
+id = "pc"
+name = "PC Compatibility"
+description = "Enabled by default."
+group = "Quality of Life"
+default_enabled = true
+
+[[plugin]]
+feature = "pc"
+id = "muppet.pc"

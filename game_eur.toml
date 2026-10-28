@@ -1,0 +1,59 @@
+# Autofilled by tools/new_project_layout/probe_disc.py from your legal dump.
+# Review before shipping. Runtime quirks / overlay seeds still need hand work.
+
+[game]
+name = "MuppetRaceMania"
+id = "SCES-02008"
+players = 2
+exe = "disc/SCES_020.08"
+disc = "disc/Muppet RaceMania (Europe).cue"   # pass the player's own disc with --disc
+load_address = "0x80010000"
+entry_pc = "0x80093868"
+text_size = "0x000A1800"
+stack_base = "0x801FFFF0"
+
+# Digests are for data Track 01 (first BINARY FILE / TRACK 01).
+[prepare_disc]
+out_dir = "disc"
+bin_name = "Muppet RaceMania (Europe).bin"
+cue_name = "Muppet RaceMania (Europe).cue"
+boot_exe = "SCES_020.08"
+known_sizes = [518025648]
+known_md5 = [
+  "345f6dd521e2d34ab406a7748c48d6d9",
+]
+known_sha1 = [
+  "fe6aa396784527be81b550dbfc03b51d83707912",
+]
+known_crc32 = [
+  "a23e3e55",
+]
+
+[recompiler]
+seeds = "seeds/ghidra_funcs_eur.txt"
+out_dir = "generated"
+strict = true
+# Trusted mod entry hooks (muppet_mods.c, package muppet.pc). Inert unless
+# the plugin registers for them. Changing this list needs a regenerate.
+mod_function_entry_funcs = [
+  "0x800939B4",  # BIOS free() thunk: retail [buf-4] |= 1 (OpenBIOS hangs here)
+]
+
+[runtime]
+window_title = "Muppet RaceMania Recompiled"
+memcard_dir = "saves"
+overlay_cache = true
+
+[video]
+renderer = "opengl"
+aspect_ratio = "4:3"
+
+[controller]
+default_mode = "analog"
+
+# Online mount gate: digests + track count + optional TOC fingerprint
+# (see docs/NETPLAY.md).
+[netplay]
+require_cue = true
+required_tracks = 1
+required_disc_fp = "6f4df02727d3024b9ca3bea8ea84d432586289a08e5ef28f89f6a6c9d7ddaa95"

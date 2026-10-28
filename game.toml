@@ -33,9 +33,14 @@ known_crc32 = [
 seeds = "seeds/ghidra_funcs.txt"
 out_dir = "generated"
 strict = true
+# Trusted mod entry hooks (muppet_mods.c, package muppet.pc). Inert unless
+# the plugin registers for them. Changing this list needs a regenerate.
+mod_function_entry_funcs = [
+  "0x80093360",  # BIOS free() thunk: retail [buf-4] |= 1 (OpenBIOS hangs here)
+]
 
 [runtime]
-window_title = "MuppetRaceMania Recompiled"
+window_title = "Muppet RaceMania Recompiled"
 memcard_dir = "saves"
 overlay_cache = true
 
@@ -44,7 +49,7 @@ renderer = "opengl"
 aspect_ratio = "4:3"
 
 [controller]
-default_mode = "digital"
+default_mode = "analog"
 
 # Online mount gate: digests + track count + optional TOC fingerprint
 # (see docs/NETPLAY.md).

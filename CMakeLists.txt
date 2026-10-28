@@ -16,13 +16,13 @@ project(MuppetRaceMania LANGUAGES C CXX)
 # The wizard (WIZARD_CMAKE_BLOCK / ENABLE_SETUP_WIZARD) is the first-run disc
 # picker; releases are compiled from the committed generated/ C, so it never
 # needs to generate or rebuild anything on a player's machine.
-﻿set(PSX_RECOMP_UI OFF CACHE BOOL
+set(PSX_RECOMP_UI OFF CACHE BOOL
     "No recomp-ui submodule in this scaffold" FORCE)
-﻿# Full netplay UI -- enable after adding recomp-ui + testing:
+# Full netplay UI -- enable after adding recomp-ui + testing:
 # if(EXISTS "${PSXRECOMP_ROOT}/lib/recomp-net/CMakeLists.txt")
 #     set(PSX_NETPLAY ON CACHE BOOL "..." FORCE)
 # endif()
-﻿# First-run setup wizard -- enable after testing:
+# First-run setup wizard -- enable after testing:
 # set(PSX_SETUP_WIZARD ON CACHE BOOL "..." FORCE)
 include("${PSXRECOMP_ROOT}/runtime/runtime.cmake")
 
@@ -36,23 +36,42 @@ if(NOT IS_DIRECTORY "${PSX_PRELOADED_MODS}")
     set(PSX_PRELOADED_MODS "NONE")
 endif()
 
+# One program per region: the USA (SLUS-01237) and European (SCES-02008)
+# releases are different builds of the game, so each has its own translated
+# code (generated/<boot exe>_*) and config. Configure a build folder per region:
+#   -DMRM_REGION=USA (default) or -DMRM_REGION=EUR
+set(MRM_REGION "USA" CACHE STRING "Game region to build: USA or EUR")
+set_property(CACHE MRM_REGION PROPERTY STRINGS USA EUR)
+if(MRM_REGION STREQUAL "USA")
+    set(MRM_BOOT_EXE "SLUS_012.37")
+    set(MRM_GAME_CONFIG "game.toml")
+elseif(MRM_REGION STREQUAL "EUR")
+    set(MRM_BOOT_EXE "SCES_020.08")
+    set(MRM_GAME_CONFIG "game_eur.toml")
+else()
+    message(FATAL_ERROR "MRM_REGION must be USA or EUR, not '${MRM_REGION}'")
+endif()
+message(STATUS "Muppet RaceMania region: ${MRM_REGION} (${MRM_BOOT_EXE}, ${MRM_GAME_CONFIG})")
+
 psxrecomp_add_game_runtime(psx-runtime
     PRELOADED_MODS_DIR "${PSX_PRELOADED_MODS}"
     # ENABLE_NETPLAY_IF_PRESENT
     # NETPLAY_LOBBY_URL ws://netplay.retcomm.net:8765
     # ENABLE_SETUP_WIZARD
-    WINDOW_TITLE "MuppetRaceMania"
+    WINDOW_TITLE "Muppet RaceMania Recompiled"
     DEFAULT_GAME_CONFIG_PATH "game.toml"
     MAX_PLAYERS 2
-﻿    # LAUNCHER_BOXART "${CMAKE_CURRENT_SOURCE_DIR}/launcher_assets/img/boxart.tga"
-﻿    APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/psxrecomp.ico"
+    # LAUNCHER_BOXART "${CMAKE_CURRENT_SOURCE_DIR}/launcher_assets/img/boxart.tga"
+    APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/psxrecomp.ico"
     # Committed game C (psxrecomp_cli.py generate; git add generated). Release
     # CI configures with -DPSXRECOMP_REQUIRE_GAME_C=ON so a checkout without
     # it fails instead of building a setup host.
-    GEN_MARKER "generated/SLUS_012.37_dispatch.c"
-    GEN_FULL_GLOB "generated/SLUS_012.37_full_*.c"
-﻿    # CODEGEN_SETUP_SOURCES -- add with recomp-ui / wizard later
+    GEN_MARKER "generated/${MRM_BOOT_EXE}_dispatch.c"
+    GEN_FULL_GLOB "generated/${MRM_BOOT_EXE}_full_*.c"
+    # CODEGEN_SETUP_SOURCES -- add with recomp-ui / wizard later
 )
+# Muppet RaceMania PC compatibility (mods/preloaded/packages/muppet.pc).
+target_sources(psx-runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/muppet_mods.c")
 
 # >>> psxrecomp:recomp-net-headers (managed by tools/update_cmake.{sh,ps1})
 # runtime/src/main.cpp includes recomp_net/host_relay.h unconditionally (a
@@ -66,12 +85,18 @@ endif()
 
 # Stage runtime configs next to the exe for direct build/ launches. Only copy
 # files that exist — never fail POST_BUILD when game_options.toml is absent.
-foreach(_PSX_RUNTIME_CONFIG game.toml game_options.toml)
+# The region's config is staged as game.toml, the name the runtime looks for.
+foreach(_PSX_RUNTIME_CONFIG ${MRM_GAME_CONFIG} game_options.toml)
+    if(_PSX_RUNTIME_CONFIG STREQUAL MRM_GAME_CONFIG)
+        set(_PSX_STAGED_NAME game.toml)
+    else()
+        set(_PSX_STAGED_NAME ${_PSX_RUNTIME_CONFIG})
+    endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_PSX_RUNTIME_CONFIG}")
         add_custom_command(TARGET psx-runtime POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${CMAKE_CURRENT_SOURCE_DIR}/${_PSX_RUNTIME_CONFIG}"
-                "$<TARGET_FILE_DIR:psx-runtime>/${_PSX_RUNTIME_CONFIG}"
+                "$<TARGET_FILE_DIR:psx-runtime>/${_PSX_STAGED_NAME}"
             COMMENT "Staging ${_PSX_RUNTIME_CONFIG}"
             VERBATIM)
     endif()
