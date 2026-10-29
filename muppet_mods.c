@@ -64,11 +64,27 @@ static void muppet_track_cull(struct CPUState* cpu, uint32_t address) {
  * as the PlayStation cannot clip at the camera. In 4:3 they are mostly the
  * walls beside the camera, off screen; in 16:9 they left holes at the sides.
  * With a wide view the GL renderer clips them at the camera plane (near clip
- * above), so they are kept while any of them is in front (OTZ > 0). The hook
- * runs on the bnez, after the slti, so OTZ (s4) still indexes the OT. */
+ * above), so they are kept while any of them is in front (OTZ > 0) and all
+ * four vertices (SXY in a0, a1, a2, t0) are beside the 4:3 picture on the same
+ * side: only the walls the wider view reveals. A near polygon over the 4:3
+ * picture stays dropped as on the PlayStation (kept, it can cover the screen
+ * when the camera passes through a wall). The hook runs on the bnez, after
+ * the slti, so OTZ (s4) still indexes the OT. */
+static int muppet_beside_43(const struct CPUState* cpu) {
+    static const int kRegs[4] = {4, 5, 6, 8};
+    int left = 0, right = 0;
+    for (int i = 0; i < 4; i++) {
+        const int16_t x = (int16_t)(cpu->gpr[kRegs[i]] & 0xFFFFu);
+        left += x < 0;
+        right += x >= 0x200; /* the renderer's screen is 512 wide (sltiu 0x200) */
+    }
+    return left == 4 || right == 4;
+}
+
 static void muppet_near_keep(struct CPUState* cpu, uint32_t address) {
     (void)address;
-    if (cpu->gpr[13] && (int32_t)cpu->gpr[20] > 0 && psx_mod_widescreen_x_margin() > 0) {
+    if (cpu->gpr[13] && (int32_t)cpu->gpr[20] > 0 && psx_mod_widescreen_x_margin() > 0 &&
+        muppet_beside_43(cpu)) {
         cpu->gpr[13] = 0; /* t5: keep */
         psx_mod_counter_add("muppet.near.kept", 1);
     }
