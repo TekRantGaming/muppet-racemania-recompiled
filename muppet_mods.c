@@ -45,18 +45,56 @@ static const uint32_t kTrackCullSites[] = {
     0x80010278u, 0x80010484u, 0x8001161Cu, 0x80011700u, 0x80011998u, /* sub a1, t0, a1 */
 };
 
+/* Before the cone, a piece must be in the track's visibility mask
+ * (0x800C1AC8, one bit per piece; the game rebuilds it from baked per-camera-
+ * position deltas as the camera moves along the track). The mask was baked for
+ * the 4:3 view, so it leaves out about 60% of the pieces in the side strips
+ * 16:9 adds, and those popped in and out at the edges. In 16:9 a piece missing
+ * from the mask is let through to the tests (on the beqz), and the cone hook
+ * keeps it only if it is in the wide view and reaches out of the 4:3 cone
+ * (|x| > z - radius); pieces wholly inside the 4:3 picture stay as the game
+ * chose. */
+#define kMaskTest1 0x80010108u /* beqz t9, 0x80010000; cone sites [0], [1] */
+#define kMaskTest2 0x800103F4u /* beqz t9, 0x8001031C; cone site [2] */
+
+static uint32_t s_unmasked = 0; /* the mask test that let the current piece through, or 0 */
+
+static void muppet_mask_test(struct CPUState* cpu, uint32_t address) {
+    s_unmasked = 0;
+    if (!cpu->gpr[25] && psx_mod_widescreen_x_margin() > 0) {
+        cpu->gpr[25] = 1; /* t9: in the mask */
+        s_unmasked = address;
+    }
+}
+
 static void muppet_track_cull(struct CPUState* cpu, uint32_t address) {
-    (void)address;
+    const uint32_t unmasked = s_unmasked;
+    s_unmasked = 0;
+    const int unmasked_here =
+        unmasked == kMaskTest1 ? address == kTrackCullSites[0] || address == kTrackCullSites[1]
+                               : unmasked == kMaskTest2 && address == kTrackCullSites[2];
     const int32_t margin = psx_mod_widescreen_x_margin();
     const int32_t x = (int32_t)cpu->gpr[5];
-    if (margin <= 0 || x <= 0)
+    const int32_t reach = (int32_t)cpu->gpr[8]; /* t0 = z + radius */
+    if (margin <= 0 || x <= 0) {
+        if (unmasked_here)
+            cpu->gpr[5] = (uint32_t)reach + 1u; /* not in the side strips: dropped as the mask said */
         return;
+    }
     uint32_t width = psx_mod_display_width();
     const int64_t half = (int64_t)(width ? width : 512u) / 2;
     const int32_t scaled = (int32_t)((int64_t)x * half / (half + margin));
-    const int32_t reach = (int32_t)cpu->gpr[8]; /* t0 = z + radius */
-    if (reach - x < 0 && reach - scaled >= 0)
+    if (unmasked_here) {
+        const int32_t radius = (int32_t)(cpu->gpr[12] & 0xFFFFu); /* t4 */
+        const int keep = reach - scaled >= 0 && x > reach - 2 * radius; /* reach - 2r = z - r */
+        if (!keep) {
+            cpu->gpr[5] = (uint32_t)reach + 1u;
+            return;
+        }
+        psx_mod_counter_add("muppet.mask.side", 1);
+    } else if (reach - x < 0 && reach - scaled >= 0) {
         psx_mod_counter_add("muppet.track_cull.kept", 1); /* TCP mod_counters */
+    }
     cpu->gpr[5] = (uint32_t)scaled;
 }
 
@@ -138,6 +176,8 @@ PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     for (unsigned i = 1; i < sizeof kTrackCullSites / sizeof kTrackCullSites[0]; i++)
         (void)psx_mod_register_instruction_plugin("muppet.widescreen", kTrackCullSites[i], 0x01052822u,
                                                   muppet_track_cull);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kMaskTest1, 0x1320FFF6u, muppet_mask_test);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kMaskTest2, 0x1320FFF6u, muppet_mask_test);
     (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x80011290u, 0x15A00026u, muppet_near_keep);
     (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x800121BCu, 0x15A0002Cu, muppet_near_keep);
 }
