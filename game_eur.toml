@@ -38,6 +38,19 @@ strict = true
 mod_function_entry_funcs = [
   "0x800939B4",  # BIOS free() thunk: retail [buf-4] |= 1 (OpenBIOS hangs here)
 ]
+# Track-piece cull in the hand-written renderer (both regions, same code):
+# a piece is dropped when |x| > z + radius, a 4:3 view cone. In 16:9 the
+# widescreen plugin scales |x| down by the wider view just before each test.
+mod_instruction_sites = [
+  "0x800101B4",  # sub t0, t0, a1   (0x80010000, near pieces)
+  "0x80010278",  # sub a1, t0, a1   (0x80010000, far pieces)
+  "0x80010484",  # sub a1, t0, a1   (0x8001031C)
+  "0x8001161C",  # sub a1, t0, a1   (0x80010E90)
+  "0x80011700",  # sub a1, t0, a1   (0x80010E90)
+  "0x80011998",  # sub a1, t0, a1   (0x80011774)
+  "0x80011290",  # bnez t5 after slti t5, s4, 0x28: polygon nearer than OTZ 40 dropped
+  "0x800121BC",  # bnez t5 after slti t5, s4, 0x28 (object renderer 0x80011E3C)
+]
 
 [runtime]
 window_title = "Muppet RaceMania Recompiled"

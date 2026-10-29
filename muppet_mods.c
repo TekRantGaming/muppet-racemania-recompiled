@@ -33,6 +33,47 @@ static int muppet_retail_free(struct CPUState* cpu, uint32_t address) {
  * native-wide renderer. game.toml [widescreen] gte_game_mode widens the frames
  * that project 3D, and [widescreen.cull] moves the renderer's screen-X culls
  * out by the reveal. */
+/* The renderer's track-piece cull (hand-written, 0x80010000 and its sisters,
+ * identical in both regions) keeps a piece while z + radius - |x| >= 0 in
+ * camera space: a view cone as wide as the 4:3 screen, so in 16:9 pieces at
+ * the sides were never drawn. Just before each test |x| (a1) is scaled by
+ * half / (half + margin), which widens the cone by exactly the wider view
+ * plus the runtime's culling guard; at 4:3 the margin is 0 and nothing
+ * changes. Sites: [recompiler] mod_instruction_sites in game.toml. */
+static const uint32_t kTrackCullSites[] = {
+    0x800101B4u, /* sub t0, t0, a1 */
+    0x80010278u, 0x80010484u, 0x8001161Cu, 0x80011700u, 0x80011998u, /* sub a1, t0, a1 */
+};
+
+static void muppet_track_cull(struct CPUState* cpu, uint32_t address) {
+    (void)address;
+    const int32_t margin = psx_mod_widescreen_x_margin();
+    const int32_t x = (int32_t)cpu->gpr[5];
+    if (margin <= 0 || x <= 0)
+        return;
+    uint32_t width = psx_mod_display_width();
+    const int64_t half = (int64_t)(width ? width : 512u) / 2;
+    const int32_t scaled = (int32_t)((int64_t)x * half / (half + margin));
+    const int32_t reach = (int32_t)cpu->gpr[8]; /* t0 = z + radius */
+    if (reach - x < 0 && reach - scaled >= 0)
+        psx_mod_counter_add("muppet.track_cull.kept", 1); /* TCP mod_counters */
+    cpu->gpr[5] = (uint32_t)scaled;
+}
+
+/* Polygons nearer than OTZ 40 are dropped whole (slti t5, s4, 0x28; bnez t5),
+ * as the PlayStation cannot clip at the camera. In 4:3 they are mostly the
+ * walls beside the camera, off screen; in 16:9 they left holes at the sides.
+ * With a wide view the GL renderer clips them at the camera plane (near clip
+ * above), so they are kept while any of them is in front (OTZ > 0). The hook
+ * runs on the bnez, after the slti, so OTZ (s4) still indexes the OT. */
+static void muppet_near_keep(struct CPUState* cpu, uint32_t address) {
+    (void)address;
+    if (cpu->gpr[13] && (int32_t)cpu->gpr[20] > 0 && psx_mod_widescreen_x_margin() > 0) {
+        cpu->gpr[13] = 0; /* t5: keep */
+        psx_mod_counter_add("muppet.near.kept", 1);
+    }
+}
+
 static void muppet_widescreen_activate(void) {
     (void)psx_mod_set_fixed_display_aspect(16, 9);
     /* Ground right under the camera projects beyond the GTE's +-1024 clamp; in
@@ -46,4 +87,11 @@ PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkUSA, muppet_retail_free);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkEUR, muppet_retail_free);
     (void)psx_mod_register_activation_plugin("muppet.widescreen", muppet_widescreen_activate);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kTrackCullSites[0], 0x01054022u,
+                                              muppet_track_cull);
+    for (unsigned i = 1; i < sizeof kTrackCullSites / sizeof kTrackCullSites[0]; i++)
+        (void)psx_mod_register_instruction_plugin("muppet.widescreen", kTrackCullSites[i], 0x01052822u,
+                                                  muppet_track_cull);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x80011290u, 0x15A00026u, muppet_near_keep);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x800121BCu, 0x15A0002Cu, muppet_near_keep);
 }
