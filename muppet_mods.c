@@ -99,7 +99,37 @@ static void muppet_widescreen_activate(void) {
     psx_mod_set_native_wide_near_clip(1);
 }
 
+/* Frame rate (feature "frame-rate", option rate = original | 60). The race
+ * loop waits while its VBlank counter is below 2 (slti v0, v0, 2; bnez v0),
+ * then takes the count as the frame's time step (clamped to 4) and has the
+ * VBlank callback flip: 30 FPS, 25 on PAL. Everything moves by that step, so
+ * letting a frame end after one VBlank gives 60 (50) at the right speed. The
+ * CPU is overclocked so a race frame fits in one VBlank; guest VBlanks,
+ * timers and audio keep their real rate. */
+#define kRaceWaitUSA 0x80078A94u /* counter 0x800B0DD8 */
+#define kRaceWaitEUR 0x80077B50u /* counter 0x800B15C8 */
+
+static int s_unlocked = 0;
+
+static void muppet_race_wait(struct CPUState* cpu, uint32_t address) {
+    if (!s_unlocked || !cpu->gpr[2])
+        return;
+    const uint32_t counter = address == kRaceWaitUSA ? 0x800B0DD8u : 0x800B15C8u;
+    if ((int32_t)psx_mod_read_word(counter) >= 1)
+        cpu->gpr[2] = 0; /* v0: stop waiting */
+}
+
+static void muppet_framerate_activate(void) {
+    char rate[16] = {0};
+    s_unlocked = psx_mod_option_value("muppet.pc", "frame-rate", "rate", rate, sizeof rate) &&
+                 rate[0] == '6' && rate[1] == '0';
+    (void)psx_mod_set_cpu_overclock(s_unlocked ? 300u : 100u);
+}
+
 PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
+    (void)psx_mod_register_activation_plugin("muppet.framerate", muppet_framerate_activate);
+    (void)psx_mod_register_instruction_plugin("muppet.framerate", kRaceWaitUSA, 0x1440FFF7u, muppet_race_wait);
+    (void)psx_mod_register_instruction_plugin("muppet.framerate", kRaceWaitEUR, 0x1440FFF7u, muppet_race_wait);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkUSA, muppet_retail_free);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkEUR, muppet_retail_free);
     (void)psx_mod_register_activation_plugin("muppet.widescreen", muppet_widescreen_activate);

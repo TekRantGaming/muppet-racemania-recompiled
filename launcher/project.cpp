@@ -47,7 +47,11 @@ trg::hub::ProjectConfig MuppetRaceMania() {
       "16:9 with the wider view of the track. Loading screens and movies keep their 4:3 picture.", "muppet.pc",
       "widescreen"};
   widescreen.widescreen = true;
-  game.psx_options = {widescreen};
+  trg::hub::PsxOption frame_rate = {"Display", "Frame rate",
+      "The game races at 30 FPS (25 on a Europe disc). 60 FPS (50) is smoother and plays at the same speed; "
+      "it needs a faster CPU.", "muppet.pc", "frame-rate", "rate", "original=Original (30 FPS),60=60 FPS",
+      "original"};
+  game.psx_options = {widescreen, frame_rate};
   p.games = {game};
 
   // Releases: vX holds MuppetRaceManiaRecompiled-vX-windows-x64.zip for players; packages-vX holds what the launcher

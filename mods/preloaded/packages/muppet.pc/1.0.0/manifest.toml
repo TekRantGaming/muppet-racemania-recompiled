@@ -34,3 +34,29 @@ default_enabled = true
 [[plugin]]
 feature = "widescreen"
 id = "muppet.widescreen"
+
+[[feature]]
+id = "frame-rate"
+name = "Frame Rate"
+description = "Races at the original 30 FPS (25 on a Europe disc) or at 60 (50)."
+group = "Display"
+default_enabled = true
+
+[[option]]
+feature = "frame-rate"
+id = "rate"
+label = "Frame rate"
+type = "choice"
+default = "original"
+
+[[option.choice]]
+value = "original"
+label = "Original (30 FPS)"
+
+[[option.choice]]
+value = "60"
+label = "60 FPS"
+
+[[plugin]]
+feature = "frame-rate"
+id = "muppet.framerate"

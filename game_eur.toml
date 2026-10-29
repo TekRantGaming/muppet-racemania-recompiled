@@ -50,6 +50,7 @@ mod_instruction_sites = [
   "0x80011998",  # sub a1, t0, a1   (0x80011774)
   "0x80011290",  # bnez t5 after slti t5, s4, 0x28: polygon nearer than OTZ 40 dropped
   "0x800121BC",  # bnez t5 after slti t5, s4, 0x28 (object renderer 0x80011E3C)
+  "0x80077B50",  # bnez v0 after slti v0, v0, 2: race frame waits for 2 VBlanks (0x800B15C8); frame-rate plugin
 ]
 
 [runtime]
