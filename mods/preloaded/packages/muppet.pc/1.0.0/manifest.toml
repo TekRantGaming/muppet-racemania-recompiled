@@ -23,3 +23,14 @@ default_enabled = true
 [[plugin]]
 feature = "pc"
 id = "muppet.pc"
+
+[[feature]]
+id = "widescreen"
+name = "Widescreen"
+description = "16:9 in races, with the wider view the game never showed. Enabled by default."
+group = "Display"
+default_enabled = true
+
+[[plugin]]
+feature = "widescreen"
+id = "muppet.widescreen"

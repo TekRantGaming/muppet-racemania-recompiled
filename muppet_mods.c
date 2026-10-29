@@ -29,7 +29,21 @@ static int muppet_retail_free(struct CPUState* cpu, uint32_t address) {
     return 1; /* returns to $ra like the retail free(); v0 is not set (void) */
 }
 
+/* Widescreen (feature "widescreen", on by default): 16:9 through psxrecomp's
+ * native-wide renderer. game.toml [widescreen] gte_game_mode widens the frames
+ * that project 3D, and [widescreen.cull] moves the renderer's screen-X culls
+ * out by the reveal. */
+static void muppet_widescreen_activate(void) {
+    (void)psx_mod_set_fixed_display_aspect(16, 9);
+    /* Ground right under the camera projects beyond the GTE's +-1024 clamp; in
+     * the wider view those triangles show. Render-only recovery of the clamped
+     * X and clipping at the camera plane draw them as they really are. */
+    psx_mod_set_native_wide_projection_correction(1);
+    psx_mod_set_native_wide_near_clip(1);
+}
+
 PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkUSA, muppet_retail_free);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkEUR, muppet_retail_free);
+    (void)psx_mod_register_activation_plugin("muppet.widescreen", muppet_widescreen_activate);
 }

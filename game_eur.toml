@@ -59,3 +59,18 @@ p1_device = "auto"
 require_cue = true
 required_tracks = 1
 required_disc_fp = "6f4df02727d3024b9ca3bea8ea84d432586289a08e5ef28f89f6a6c9d7ddaa95"
+
+# Widescreen (feature "widescreen" of muppet.pc): the renderer's screen-X culls,
+# widened by the live reveal while the view is 16:9 (identity at 4:3). The same
+# functions as the USA EXE at this build's addresses; the vertical tests here
+# compare with 0x100 (PAL), and the distance tests stay as they are.
+[widescreen]
+# 16:9 for every frame that projects 3D (races, the title, menus over 3D);
+# frames without GTE work (loading screens, FMV) keep their 4:3 picture.
+gte_game_mode = true
+
+[widescreen.cull]
+screen_x_sites = ["0x800112A0", "0x800112AC", "0x800112B8", "0x800112C4", "0x800121C4", "0x800121D0", "0x800121DC", "0x800121E8", "0x80017290", "0x80018B98", "0x8001CA28", "0x8001DDB4"]
+slti_sites = ["0x80032A48", "0x80032A50", "0x80032A58", "0x80032A60", "0x80032AE0", "0x800331E8", "0x80033214", "0x80033228", "0x8003323C", "0x8003C044", "0x8003C058", "0x8003C06C", "0x8003C080", "0x8003C454", "0x8003C468", "0x8003C47C", "0x8003C490", "0x8003C8D0", "0x8003C8E4", "0x8003C8F8", "0x8003C90C", "0x8003CCE0", "0x8003CCF4", "0x8003CD08", "0x8003CD1C", "0x8003D67C", "0x8003D690", "0x8003D6B0", "0x8003D6C4", "0x8003DBA8", "0x8003DBBC", "0x8003DBDC", "0x8003DBF0", "0x80049DF0"]
+bgez_sites = ["0x80032A28", "0x80032A30", "0x80032A38", "0x800331E4", "0x800331F4", "0x8003C094", "0x8003C0A4", "0x8003C0B4", "0x8003C4A4", "0x8003C4B4", "0x8003C4C4", "0x8003C920", "0x8003C930", "0x8003C940", "0x8003CD30", "0x8003CD40", "0x8003CD50", "0x8003D6D8", "0x8003D6E8", "0x8003D704", "0x8003DC04", "0x8003DC14", "0x8003DC30"]
+bltz_sites = ["0x80032A40", "0x80032AF8", "0x80033204", "0x8003C0C4", "0x8003C4D4", "0x8003C950", "0x8003CD60", "0x8003D714", "0x8003DC40", "0x80049E04"]

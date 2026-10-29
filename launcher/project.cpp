@@ -42,6 +42,12 @@ trg::hub::ProjectConfig MuppetRaceMania() {
       {"SCES-02008", "Europe", "eur", "Muppet RaceMania (Europe).cue", "518,025,648 bytes",
        "FE6AA396784527BE81B550DBFC03B51D83707912", "345F6DD521E2D34AB406A7748C48D6D9", "A23E3E55"},
   };
+  // The game's own settings: features of its mod package muppet.pc (mods/preloaded/packages/muppet.pc).
+  trg::hub::PsxOption widescreen = {"Display", "Widescreen",
+      "16:9 with the wider view of the track. Loading screens and movies keep their 4:3 picture.", "muppet.pc",
+      "widescreen"};
+  widescreen.widescreen = true;
+  game.psx_options = {widescreen};
   p.games = {game};
 
   // Releases: vX holds MuppetRaceManiaRecompiled-vX-windows-x64.zip for players; packages-vX holds what the launcher
