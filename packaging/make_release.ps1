@@ -12,9 +12,10 @@
 #     MuppetRaceManiaRecompiled-v<Version>-windows-x64.zip   the launcher's own update
 #     MuppetRaceMania-v<Version>-windows-x64.zip             the game: usa\ and eur\, one build per disc
 #     SHA256SUMS.txt
+#   and the Linux AppImage, beside the players' zip and in packages.
 # Each zip holds a file list (update-files.txt) made by the TRG updater's make_update_files.py, so updates replace
 # exactly the release's files and never the protected ones (the disc image, settings, saves, what the runtime learns).
-# Build first: build.bat USA, build.bat EUR and build-launcher.bat. No game data is included.
+# Build first: build.bat USA, build.bat EUR, build-launcher.bat and the AppImage. No game data is included.
 param(
   [Parameter(Mandatory)][string]$Version,
   [Parameter(Mandatory)][string]$Out,
@@ -105,8 +106,14 @@ $playersZip = Join-Path $top "MuppetRaceManiaRecompiled-v$Version-windows-x64.zi
 Compress-Archive (Join-Path $players 'MuppetRaceManiaRecompiled') $playersZip
 "{0,-52} {1,6:N1} MB  (players: the launcher and the game)" -f (Split-Path -Leaf $playersZip), ((Get-Item $playersZip).Length / 1MB)
 
+# The Linux AppImage (packaging/build_appimage.sh) goes in both releases.
+$appImage = Join-Path $root "dist\linux\MuppetRaceManiaRecompiled-v$Version-linux-x86_64.AppImage"
+if (-not (Test-Path $appImage)) { throw "$appImage is missing: run packaging/build_appimage.sh" }
+Copy-Item $appImage $top
+Copy-Item $appImage $tag
+
 # One SHA256SUMS.txt for the packages release (Windows line ends, two spaces between hash and name).
-$sums = Get-ChildItem $tag -Filter '*.zip' | Sort-Object Name | ForEach-Object {
+$sums = Get-ChildItem $tag -File | Sort-Object Name | ForEach-Object {
   "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
 [IO.File]::WriteAllText((Join-Path $tag 'SHA256SUMS.txt'), (($sums -join "`r`n") + "`r`n"))
 "Done: $top"
