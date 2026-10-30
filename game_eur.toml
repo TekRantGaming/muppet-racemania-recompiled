@@ -62,6 +62,8 @@ mod_instruction_sites = [
   "0x80011290",  # bnez t5 after slti t5, s4, 0x28: polygon nearer than OTZ 40 dropped
   "0x800121BC",  # bnez t5 after slti t5, s4, 0x28 (object renderer 0x80011E3C)
   "0x80077B50",  # bnez v0 after slti v0, v0, 2: race frame waits for 2 VBlanks (0x800B15C8); frame-rate plugin
+  "0x80062E28",  # sll v0, s2, 16: chase-camera trail shift (frame-rate plugin)
+  "0x80062EAC",  # sw v0, 0xC(v1): newest trail entry's VBlanks (frame-rate plugin)
 ]
 
 [runtime]

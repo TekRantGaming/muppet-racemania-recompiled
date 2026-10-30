@@ -228,6 +228,43 @@ static void muppet_race_wait(struct CPUState* cpu, uint32_t address) {
         cpu->gpr[2] = 0; /* v0: stop waiting */
 }
 
+/* The chase camera aims at the kart's position 16 VBlanks ago, walking back
+ * along the kart's trail: 12 entries {x, y, z, VBlanks since the next older
+ * one}, pushed one per frame (USA 0x80065278, trail at kart+0x2DC; EUR
+ * 0x80062E00, kart+0x5C0). At 30 FPS an entry spans 2 VBlanks, so the walk
+ * needs 8; at 60 it spans 1 and the walk ran past the 12th into the next
+ * kart's trail, flinging the camera across the map. A one-VBlank frame now
+ * replaces the newest entry and adds its VBlank instead of pushing one, so
+ * every entry spans at least 2 VBlanks as at 30 FPS and the camera follows
+ * exactly as it did. The shift loop (s2 = 11 entries to move) is started at
+ * 0, which copies only into the newest entry, rewritten just after. */
+#define kTrailShiftUSA 0x800652A0u /* sll v0, s2, 16 */
+#define kTrailSpanUSA 0x80065324u  /* sw v0, 0xC(v1): newest entry's VBlanks */
+#define kTrailShiftEUR 0x80062E28u
+#define kTrailSpanEUR 0x80062EACu
+
+static uint32_t s_trail_merged = 0; /* VBlanks the replaced newest entry spanned, or 0 */
+
+static void muppet_trail_shift(struct CPUState* cpu, uint32_t address) {
+    s_trail_merged = 0;
+    if (!s_unlocked)
+        return;
+    const uint32_t trail = cpu->read_word(cpu->gpr[17] + (address == kTrailShiftUSA ? 0x2DCu : 0x5C0u));
+    const uint32_t span = cpu->read_word(trail + 0xCu);
+    if (span == 1u) {
+        cpu->gpr[18] = 0; /* s2: move no entries */
+        s_trail_merged = span;
+    }
+}
+
+static void muppet_trail_span(struct CPUState* cpu, uint32_t address) {
+    (void)address;
+    if (s_trail_merged) {
+        cpu->gpr[2] += s_trail_merged; /* v0 = this frame's VBlanks + the replaced entry's */
+        s_trail_merged = 0;
+    }
+}
+
 static void muppet_framerate_activate(void) {
     char rate[16] = {0};
     s_unlocked = psx_mod_option_value("muppet.pc", "frame-rate", "rate", rate, sizeof rate) &&
@@ -239,6 +276,10 @@ PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     (void)psx_mod_register_activation_plugin("muppet.framerate", muppet_framerate_activate);
     (void)psx_mod_register_instruction_plugin("muppet.framerate", kRaceWaitUSA, 0x1440FFF7u, muppet_race_wait);
     (void)psx_mod_register_instruction_plugin("muppet.framerate", kRaceWaitEUR, 0x1440FFF7u, muppet_race_wait);
+    (void)psx_mod_register_instruction_plugin("muppet.framerate", kTrailShiftUSA, 0x00121400u, muppet_trail_shift);
+    (void)psx_mod_register_instruction_plugin("muppet.framerate", kTrailSpanUSA, 0xAC62000Cu, muppet_trail_span);
+    (void)psx_mod_register_instruction_plugin("muppet.framerate", kTrailShiftEUR, 0x00121400u, muppet_trail_shift);
+    (void)psx_mod_register_instruction_plugin("muppet.framerate", kTrailSpanEUR, 0xAC62000Cu, muppet_trail_span);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkUSA, muppet_retail_free);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkEUR, muppet_retail_free);
     (void)psx_mod_register_activation_plugin("muppet.widescreen", muppet_widescreen_activate);
