@@ -57,11 +57,83 @@ static const uint32_t kTrackCullSites[] = {
 #define kMaskTest1 0x80010108u /* beqz t9, 0x80010000; cone sites [0], [1] */
 #define kMaskTest2 0x800103F4u /* beqz t9, 0x8001031C; cone site [2] */
 
+/* Draw distance (feature "draw-distance", option distance): the limits the
+ * culls above test are scaled as they are loaded, by s_far percent (100 = the
+ * game's). The radii come from 0x800B0CD0 and 0x800B0DE8 (a race sets about
+ * 0x952 and 0x7D2; squared after *5 >> 4 against dx^2 + dz^2 - r^2 >> 8),
+ * depth from 4 * [0x800B0CD0] and 4 * [0x800B0B00], and a few pieces and
+ * objects use constants (radius^2 0x600000, depth 16000 or 20000). The mask
+ * was baked within the game's limits, so a piece missing from it that lies
+ * beyond them is kept as well. */
+static uint32_t s_far = 100;
+static int32_t s_radius_cd0 = 0, s_radius_de8 = 0, s_depth_b00 = 0; /* the game's, from the loads */
+
+static int32_t muppet_far(int32_t v) { return (int32_t)((int64_t)v * s_far / 100); }
+static int32_t muppet_radius2(int32_t v) { /* as the game: SQR of (v * 5) >> 4 */
+    const int32_t ir = (v * 5) >> 4;
+    return ir * ir;
+}
+
+static void muppet_far_load(struct CPUState* cpu, uint32_t address) {
+    switch (address) {
+    case 0x80010070u: case 0x80011424u: /* sll t8, t0, 2: t0 = [0x800B0DE8] */
+        s_radius_de8 = (int32_t)cpu->gpr[8];
+        cpu->gpr[8] = (uint32_t)muppet_far(s_radius_de8);
+        break;
+    case 0x800100A4u: case 0x80011458u: /* sll t8, t0, 2: t0 = [0x800B0CD0] */
+        s_radius_cd0 = (int32_t)cpu->gpr[8];
+        cpu->gpr[8] = (uint32_t)muppet_far(s_radius_cd0);
+        break;
+    case 0x800103CCu: /* sll t8, t8, 2: t8 = [0x800B0B00] */
+        s_depth_b00 = (int32_t)cpu->gpr[24];
+        cpu->gpr[24] = (uint32_t)muppet_far(s_depth_b00);
+        break;
+    case 0x8001016Cu: case 0x800115CCu: /* sub s3, t9, s3: s3 = 0x600000 */
+        cpu->gpr[19] = (uint32_t)((int64_t)0x600000 * s_far * s_far / 10000);
+        break;
+    case 0x80010454u: /* bgtz t0 after addi t0, t1, -16000 */
+        cpu->gpr[8] = (uint32_t)((int32_t)cpu->gpr[9] - muppet_far(16000));
+        break;
+    case 0x8001164Cu: /* bgez t0 after addi t0, t1, -20000 */
+        cpu->gpr[8] = (uint32_t)((int32_t)cpu->gpr[9] - muppet_far(20000));
+        break;
+    }
+}
+
+static const uint32_t kFarSites[][2] = {
+    {0x80010070u, 0x0008C080u}, {0x800100A4u, 0x0008C080u}, {0x8001016Cu, 0x03339822u},
+    {0x800103CCu, 0x0018C080u}, {0x80010454u, 0x1D00FFDEu}, {0x80011424u, 0x0008C080u},
+    {0x80011458u, 0x0008C080u}, {0x800115CCu, 0x03339822u}, {0x8001164Cu, 0x0501FFC2u},
+};
+
+/* At a cone site: is the piece beyond the game's own limits? t9 holds its
+ * distance (dx^2 + dz^2 - r^2 >> 8) in 0x80010000, t1 its depth, t4 its
+ * radius, t3 its flags. */
+static int muppet_beyond(const struct CPUState* cpu, uint32_t address) {
+    const int32_t dist = (int32_t)cpu->gpr[25], z = (int32_t)cpu->gpr[9];
+    const int32_t radius = (int32_t)(cpu->gpr[12] & 0xFFFFu);
+    const uint32_t flags = cpu->gpr[11];
+    if (address == kTrackCullSites[0])
+        return dist >= 0x600000;
+    if (address == kTrackCullSites[1])
+        return dist >= muppet_radius2(s_radius_cd0) || z - radius >= 4 * s_radius_cd0 ||
+               (!(flags & 0x40u) && dist >= muppet_radius2(s_radius_de8));
+    return (flags & 0x80u) ? z > 16000 : z - radius >= 4 * s_depth_b00;
+}
+
+static void muppet_drawdistance_activate(void) {
+    char distance[16] = {0};
+    if (!psx_mod_option_value("muppet.pc", "draw-distance", "distance", distance, sizeof distance))
+        return;
+    s_far = distance[0] == 'f' && distance[1] == 'a' && distance[2] == 'r' && distance[3] == 't' ? 200u
+          : distance[0] == 'f' ? 150u : 100u; /* farther, far, original */
+}
+
 static uint32_t s_unmasked = 0; /* the mask test that let the current piece through, or 0 */
 
 static void muppet_mask_test(struct CPUState* cpu, uint32_t address) {
     s_unmasked = 0;
-    if (!cpu->gpr[25] && psx_mod_widescreen_x_margin() > 0) {
+    if (!cpu->gpr[25] && (psx_mod_widescreen_x_margin() > 0 || s_far > 100)) {
         cpu->gpr[25] = 1; /* t9: in the mask */
         s_unmasked = address;
     }
@@ -76,22 +148,21 @@ static void muppet_track_cull(struct CPUState* cpu, uint32_t address) {
     const int32_t margin = psx_mod_widescreen_x_margin();
     const int32_t x = (int32_t)cpu->gpr[5];
     const int32_t reach = (int32_t)cpu->gpr[8]; /* t0 = z + radius */
-    if (margin <= 0 || x <= 0) {
-        if (unmasked_here)
-            cpu->gpr[5] = (uint32_t)reach + 1u; /* not in the side strips: dropped as the mask said */
-        return;
+    int32_t scaled = x;
+    if (margin > 0 && x > 0) {
+        uint32_t width = psx_mod_display_width();
+        const int64_t half = (int64_t)(width ? width : 512u) / 2;
+        scaled = (int32_t)((int64_t)x * half / (half + margin));
     }
-    uint32_t width = psx_mod_display_width();
-    const int64_t half = (int64_t)(width ? width : 512u) / 2;
-    const int32_t scaled = (int32_t)((int64_t)x * half / (half + margin));
     if (unmasked_here) {
         const int32_t radius = (int32_t)(cpu->gpr[12] & 0xFFFFu); /* t4 */
-        const int keep = reach - scaled >= 0 && x > reach - 2 * radius; /* reach - 2r = z - r */
-        if (!keep) {
-            cpu->gpr[5] = (uint32_t)reach + 1u;
+        const int side = margin > 0 && x > reach - 2 * radius; /* out of the 4:3 cone: reach - 2r = z - r */
+        const int beyond = s_far > 100 && muppet_beyond(cpu, address);
+        if (reach - scaled < 0 || (!side && !beyond)) {
+            cpu->gpr[5] = (uint32_t)reach + 1u; /* dropped as the mask said */
             return;
         }
-        psx_mod_counter_add("muppet.mask.side", 1);
+        psx_mod_counter_add(beyond ? "muppet.mask.far" : "muppet.mask.side", 1);
     } else if (reach - x < 0 && reach - scaled >= 0) {
         psx_mod_counter_add("muppet.track_cull.kept", 1); /* TCP mod_counters */
     }
@@ -171,13 +242,17 @@ PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkUSA, muppet_retail_free);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkEUR, muppet_retail_free);
     (void)psx_mod_register_activation_plugin("muppet.widescreen", muppet_widescreen_activate);
-    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kTrackCullSites[0], 0x01054022u,
-                                              muppet_track_cull);
+    /* The cone, mask and limit hooks serve both widescreen and draw distance,
+     * so they hang on the always-on base plugin and do nothing at 4:3 with
+     * the game's distance. */
+    (void)psx_mod_register_instruction_plugin("muppet.pc", kTrackCullSites[0], 0x01054022u, muppet_track_cull);
     for (unsigned i = 1; i < sizeof kTrackCullSites / sizeof kTrackCullSites[0]; i++)
-        (void)psx_mod_register_instruction_plugin("muppet.widescreen", kTrackCullSites[i], 0x01052822u,
-                                                  muppet_track_cull);
-    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kMaskTest1, 0x1320FFF6u, muppet_mask_test);
-    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kMaskTest2, 0x1320FFF6u, muppet_mask_test);
+        (void)psx_mod_register_instruction_plugin("muppet.pc", kTrackCullSites[i], 0x01052822u, muppet_track_cull);
+    (void)psx_mod_register_instruction_plugin("muppet.pc", kMaskTest1, 0x1320FFF6u, muppet_mask_test);
+    (void)psx_mod_register_instruction_plugin("muppet.pc", kMaskTest2, 0x1320FFF6u, muppet_mask_test);
+    for (unsigned i = 0; i < sizeof kFarSites / sizeof kFarSites[0]; i++)
+        (void)psx_mod_register_instruction_plugin("muppet.pc", kFarSites[i][0], kFarSites[i][1], muppet_far_load);
+    (void)psx_mod_register_activation_plugin("muppet.drawdistance", muppet_drawdistance_activate);
     (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x80011290u, 0x15A00026u, muppet_near_keep);
     (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x800121BCu, 0x15A0002Cu, muppet_near_keep);
 }

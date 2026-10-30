@@ -44,14 +44,18 @@ trg::hub::ProjectConfig MuppetRaceMania() {
   };
   // The game's own settings: features of its mod package muppet.pc (mods/preloaded/packages/muppet.pc).
   trg::hub::PsxOption widescreen = {"Display", "Widescreen",
-      "16:9 with the wider view of the track. Loading screens and movies keep their 4:3 picture.", "muppet.pc",
+      "16:9 with the wider view of the track. Menus and loading screens keep their 4:3 picture.", "muppet.pc",
       "widescreen"};
   widescreen.widescreen = true;
   trg::hub::PsxOption frame_rate = {"Display", "Frame rate",
       "The game races at 30 FPS (25 on a Europe disc). 60 FPS (50) is smoother and plays at the same speed; "
       "it needs a faster CPU.", "muppet.pc", "frame-rate", "rate", "original=Original (30 FPS),60=60 FPS",
       "original"};
-  game.psx_options = {widescreen, frame_rate};
+  trg::hub::PsxOption draw_distance = {"Display", "Draw distance",
+      "How far ahead the track and karts are drawn. Far and Farther show more of the track ahead and at the "
+      "sides, and need a little more from your PC.", "muppet.pc", "draw-distance", "distance",
+      "original=Original,far=Far (1.5x),farther=Farther (2x)", "far"};
+  game.psx_options = {widescreen, frame_rate, draw_distance};
   p.games = {game};
 
   // Releases: vX holds MuppetRaceManiaRecompiled-vX-windows-x64.zip for players; packages-vX holds what the launcher

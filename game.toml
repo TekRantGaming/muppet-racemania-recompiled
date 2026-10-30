@@ -48,6 +48,15 @@ mod_instruction_sites = [
   "0x8001161C",  # sub a1, t0, a1   (0x80010E90)
   "0x80011700",  # sub a1, t0, a1   (0x80010E90)
   "0x80011998",  # sub a1, t0, a1   (0x80011774)
+  "0x80010070",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x800100A4",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x8001016C",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x800103CC",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x80010454",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x80011424",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x80011458",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x800115CC",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x8001164C",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
   "0x80010108",  # beqz t9: piece not in the track's visibility mask (0x800C1AC8)
   "0x800103F4",  # beqz t9: same, 0x8001031C
   "0x80011290",  # bnez t5 after slti t5, s4, 0x28: polygon nearer than OTZ 40 dropped

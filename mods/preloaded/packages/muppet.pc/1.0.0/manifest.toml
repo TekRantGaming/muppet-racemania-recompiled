@@ -60,3 +60,33 @@ label = "60 FPS"
 [[plugin]]
 feature = "frame-rate"
 id = "muppet.framerate"
+
+[[feature]]
+id = "draw-distance"
+name = "Draw Distance"
+description = "How far ahead the track and objects are drawn: the original distance or further."
+group = "Display"
+default_enabled = true
+
+[[option]]
+feature = "draw-distance"
+id = "distance"
+label = "Draw distance"
+type = "choice"
+default = "far"
+
+[[option.choice]]
+value = "original"
+label = "Original"
+
+[[option.choice]]
+value = "far"
+label = "Far (1.5x)"
+
+[[option.choice]]
+value = "farther"
+label = "Farther (2x)"
+
+[[plugin]]
+feature = "draw-distance"
+id = "muppet.drawdistance"
