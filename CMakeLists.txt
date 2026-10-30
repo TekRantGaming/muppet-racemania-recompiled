@@ -72,6 +72,9 @@ psxrecomp_add_game_runtime(psx-runtime
 )
 # Muppet RaceMania PC compatibility (mods/preloaded/packages/muppet.pc).
 target_sources(psx-runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/muppet_mods.c")
+# The TRG launcher is a separate program, so the on-screen text (the frame rate
+# counter, hotkey messages) is asked for here rather than by RECOMP_LAUNCHER.
+target_compile_definitions(psx-runtime PRIVATE PSX_HOST_OSD_VISUAL=1)
 
 # >>> psxrecomp:recomp-net-headers (managed by tools/update_cmake.{sh,ps1})
 # runtime/src/main.cpp includes recomp_net/host_relay.h unconditionally (a
