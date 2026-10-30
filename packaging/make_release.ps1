@@ -113,7 +113,7 @@ Copy-Item $appImage $top
 Copy-Item $appImage $tag
 
 # One SHA256SUMS.txt for the packages release (Windows line ends, two spaces between hash and name).
-$sums = Get-ChildItem $tag -File | Sort-Object Name | ForEach-Object {
+$sums = Get-ChildItem $tag -File -Exclude 'SHA256SUMS.txt' | Sort-Object Name | ForEach-Object {
   "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
 [IO.File]::WriteAllText((Join-Path $tag 'SHA256SUMS.txt'), (($sums -join "`r`n") + "`r`n"))
 "Done: $top"
