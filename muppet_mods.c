@@ -199,6 +199,82 @@ static void muppet_near_keep(struct CPUState* cpu, uint32_t address) {
     }
 }
 
+/* A race frame's polygons are built in a 54600-byte area of its display
+ * buffer (base + 0x2FC4 .. base + 0x1050C, two bases swapped each frame;
+ * kPrimSites lists where each setup stores the start and the end). Every
+ * renderer checks the room left before it builds a piece or an object and
+ * leaves the whole thing out when it does not fit, so in a full frame pieces
+ * and objects vanish, and which ones changes frame by frame. The wider and
+ * longer view fills it (a frame used 51448 bytes), so the polygons go to a
+ * 256 KB area per buffer in memory the GPU reaches; the ordering table stays
+ * where it was. */
+#define kPrimArea 0x40000u
+#define kPrimGameArea (0x1050Cu - 0x2FC4u)
+
+static uint32_t s_prim[2] = {0, 0};
+static uint32_t s_prim_start = 0, s_prim_peak = 0;
+
+static const uint32_t kPrimSites[][6] = {
+    /* start store, its word, end store, its word, first base, current-pointer global */
+    {0x8002AD14u, 0xAC220EECu, 0x8002AD24u, 0xAC230D68u, 0x801AEDE0u, 0x800B0EECu}, /* USA */
+    {0x80043440u, 0xAF821024u, 0x8004344Cu, 0xAF830EA0u, 0x801AEDE0u, 0x800B0EECu}, /* USA, races */
+    {0x8002D594u, 0xAC2216F0u, 0x8002D5A4u, 0xAC231554u, 0x801AFA60u, 0x800B16F0u}, /* EUR */
+    {0x80045A70u, 0xAF8210C0u, 0x80045A7Cu, 0xAF830F24u, 0x801AFA60u, 0x800B16F0u}, /* EUR, races */
+};
+
+static void muppet_prim_area(struct CPUState* cpu, uint32_t address) {
+    if (!s_prim[0])
+        return;
+    const uint32_t* site = kPrimSites[0];
+    for (unsigned i = 0; i < sizeof kPrimSites / sizeof kPrimSites[0]; i++)
+        if (address == kPrimSites[i][0] || address == kPrimSites[i][2])
+            site = kPrimSites[i];
+    const uint32_t area = s_prim[cpu->gpr[4] == site[4] ? 0 : 1]; /* a0 = this frame's base */
+    if (address == site[0]) { /* sw v0, current: the frame starts */
+        if (s_prim_start) { /* how much the last frame used */
+            const uint32_t used = psx_mod_read_word(site[5]) - s_prim_start;
+            if (used <= kPrimArea && used > s_prim_peak) {
+                psx_mod_counter_add("muppet.prim.peak", used - s_prim_peak);
+                s_prim_peak = used;
+            }
+            if (used <= kPrimArea && used > kPrimGameArea)
+                psx_mod_counter_add("muppet.prim.over_game_area", 1);
+        }
+        cpu->gpr[2] = s_prim_start = area;
+    } else { /* sw v1, end */
+        cpu->gpr[3] = area + kPrimArea;
+    }
+}
+
+static void muppet_pc_activate(void) {
+    s_prim[0] = psx_mod_alloc_gpu_dma_memory(kPrimArea, 16u);
+    s_prim[1] = s_prim[0] ? psx_mod_alloc_gpu_dma_memory(kPrimArea, 16u) : 0;
+    if (!s_prim[1])
+        s_prim[0] = 0;
+    s_prim_start = s_prim_peak = 0;
+}
+
+/* The track renderer (0x80012390 and its variants) and the effect renderers
+ * drop a polygon whose vertices all lie left of or all right of the clip
+ * rectangle, kept as X << 16 at 0x1F800060 / 0x1F800064 by the set-clip
+ * helper 0x800122AC (both regions). A race sets 0..512, the 4:3 picture, so
+ * every track polygon wholly inside a 16:9 side strip vanished, and as the
+ * view moved polygons blinked in and out at the screen edges. Edges at the
+ * screen's sides move out by the reveal; an inner edge (a split-screen half)
+ * stays. */
+#define kSetClipLeft 0x800122C4u  /* sw a0, 0x60(t9) */
+#define kSetClipRight 0x800122C8u /* sw a1, 0x64(t9) */
+
+static void muppet_clip_edges(struct CPUState* cpu, uint32_t address) {
+    const int32_t margin = psx_mod_widescreen_x_margin();
+    if (margin <= 0)
+        return;
+    if (address == kSetClipLeft && cpu->gpr[4] == 0)
+        cpu->gpr[4] = (uint32_t)(-margin) << 16;
+    else if (address == kSetClipRight && cpu->gpr[5] == 0x200u << 16)
+        cpu->gpr[5] = (uint32_t)(0x200 + margin) << 16;
+}
+
 static void muppet_widescreen_activate(void) {
     (void)psx_mod_set_fixed_display_aspect(16, 9);
     /* Ground right under the camera projects beyond the GTE's +-1024 clamp; in
@@ -283,6 +359,8 @@ PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkUSA, muppet_retail_free);
     (void)psx_mod_register_function_filter_plugin("muppet.pc", kFreeThunkEUR, muppet_retail_free);
     (void)psx_mod_register_activation_plugin("muppet.widescreen", muppet_widescreen_activate);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kSetClipLeft, 0xAF240060u, muppet_clip_edges);
+    (void)psx_mod_register_instruction_plugin("muppet.widescreen", kSetClipRight, 0xAF250064u, muppet_clip_edges);
     /* The cone, mask and limit hooks serve both widescreen and draw distance,
      * so they hang on the always-on base plugin and do nothing at 4:3 with
      * the game's distance. */
@@ -294,6 +372,11 @@ PSX_MOD_CONSTRUCTOR(muppet_register_mod_plugins) {
     for (unsigned i = 0; i < sizeof kFarSites / sizeof kFarSites[0]; i++)
         (void)psx_mod_register_instruction_plugin("muppet.pc", kFarSites[i][0], kFarSites[i][1], muppet_far_load);
     (void)psx_mod_register_activation_plugin("muppet.drawdistance", muppet_drawdistance_activate);
+    (void)psx_mod_register_activation_plugin("muppet.pc", muppet_pc_activate);
+    for (unsigned i = 0; i < sizeof kPrimSites / sizeof kPrimSites[0]; i++) {
+        (void)psx_mod_register_instruction_plugin("muppet.pc", kPrimSites[i][0], kPrimSites[i][1], muppet_prim_area);
+        (void)psx_mod_register_instruction_plugin("muppet.pc", kPrimSites[i][2], kPrimSites[i][3], muppet_prim_area);
+    }
     (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x80011290u, 0x15A00026u, muppet_near_keep);
     (void)psx_mod_register_instruction_plugin("muppet.widescreen", 0x800121BCu, 0x15A0002Cu, muppet_near_keep);
 }

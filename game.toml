@@ -57,6 +57,8 @@ mod_instruction_sites = [
   "0x80011458",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
   "0x800115CC",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
   "0x8001164C",  # draw distance: a limit as it is loaded or tested (muppet_far_load)
+  "0x800122C4",  # sw a0, 0x60(t9): clip rectangle left edge (muppet_clip_edges)
+  "0x800122C8",  # sw a1, 0x64(t9): clip rectangle right edge (muppet_clip_edges)
   "0x80010108",  # beqz t9: piece not in the track's visibility mask (0x800C1AC8)
   "0x800103F4",  # beqz t9: same, 0x8001031C
   "0x80011290",  # bnez t5 after slti t5, s4, 0x28: polygon nearer than OTZ 40 dropped
@@ -64,6 +66,10 @@ mod_instruction_sites = [
   "0x80078A94",  # bnez v0 after slti v0, v0, 2: race frame waits for 2 VBlanks (0x800B0DD8); frame-rate plugin
   "0x800652A0",  # sll v0, s2, 16: chase-camera trail shift (frame-rate plugin)
   "0x80065324",  # sw v0, 0xC(v1): newest trail entry's VBlanks (frame-rate plugin)
+  "0x8002AD14",  # race frame polygon area start (muppet_prim_area)
+  "0x8002AD24",  # race frame polygon area end (muppet_prim_area)
+  "0x80043440",  # race frame polygon area start, races (muppet_prim_area)
+  "0x8004344C",  # race frame polygon area end, races (muppet_prim_area)
 ]
 
 [runtime]
