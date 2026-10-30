@@ -46,6 +46,17 @@ $launcherStage = Join-Path $stageRoot 'MuppetRaceManiaRecompiled'
 New-Item -ItemType Directory -Force $launcherStage | Out-Null
 Copy-Item $launcherExe, (Join-Path $root 'README.md') $launcherStage
 
+# The licences of what the release is built from, as they ask.
+$licenses = Join-Path $launcherStage 'licenses'
+New-Item -ItemType Directory -Force $licenses | Out-Null
+$psx = Join-Path $root 'psxrecomp'
+Copy-Item (Join-Path $psx 'LICENSE') (Join-Path $licenses 'psxrecomp-LICENSE.txt')
+Copy-Item (Join-Path $psx 'THIRD_PARTY_ATTRIBUTION.md') (Join-Path $licenses 'psxrecomp-THIRD_PARTY_ATTRIBUTION.md')
+Copy-Item (Join-Path $psx 'runtime\licenses\*') $licenses
+Copy-Item (Join-Path $psx 'runtime\third_party\fsr1\LICENSE.txt') (Join-Path $licenses 'FSR1-LICENSE.txt')
+Copy-Item (Join-Path $psx 'runtime\third_party\nis\LICENSE.txt') (Join-Path $licenses 'NIS-LICENSE.txt')
+Copy-Item (Join-Path $trg 'LICENSE') (Join-Path $licenses 'trg-launcher-LICENSE.txt')
+
 # The game: one build per disc, each with its own game.toml, the runtime's data and the C runtime.
 $gameStage = Join-Path $stageRoot 'MuppetRaceMania'
 foreach ($d in $discs) {

@@ -2,3 +2,7 @@
 	path = psxrecomp
 	url = https://github.com/TekRantGaming/psxrecomp.git
 	branch = muppetracemania
+[submodule "third_party/trg-launcher"]
+	path = third_party/trg-launcher
+	url = https://github.com/TekRantGaming/trg-launcher.git
+	branch = psx-games
