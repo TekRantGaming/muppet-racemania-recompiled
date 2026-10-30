@@ -38,6 +38,7 @@
 | 🎮 **Any controller**, or the keyboard | ↩️ **Back to the launcher** any time: hold Back + Start, or Esc | 💿 **Install from your own disc image**, with the disc checked for you |
 | 🛋️ **A console style dashboard** with sounds, made for a controller | 🔄 **Updates itself** and the game | 💾 **Save backups** and restore in one click |
 | 🪟 **Borderless, exclusive or windowed**, any monitor | 🚂 **Add to Steam** with its own artwork | 🐧 **Linux** too, as one AppImage |
+| 🦍 **Other TRG Projects**, with King Kong Recompiled ready to install | 💬 **[Join the Discord](https://discord.gg/8eakYSvBZS)** right from Home | |
 
 ## Getting started
 
@@ -45,7 +46,7 @@
 
 1. Download **MuppetRaceManiaRecompiled-...-windows-x64.zip** from the [latest release](https://github.com/TekRantGaming/muppet-racemania-recompiled/releases/latest) and unzip it anywhere. It holds the launcher and the game, and everything stays in that folder, so it's portable.
 2. Run **MuppetRaceMania.exe**. It opens in fullscreen on Home. Windows may warn about an unknown publisher the first time: choose **More info**, then **Run anyway**.
-3. Press **Play**. The first time, the launcher asks for your disc image: choose the `.cue` file, and it checks the disc and copies it next to the game.
+3. Press **Play**. The first time, the launcher asks for your disc image: it finds disc images on your PC by itself (or choose the `.cue` file), checks the disc and copies it next to the game.
 4. Press **Play** again, and from then on it starts straight away.
 
 While you play, **hold Back and Start** on the controller, or **hold Esc**, to come back to the launcher. **No game files are included**: they come from your own disc. Your memory cards are kept in `saves\muppet_racemania` beside the launcher.
@@ -56,7 +57,7 @@ While you play, **hold Back and Start** on the controller, or **hold Esc**, to c
 2. Make it executable (right click it, **Properties**, **Permissions**, **Allow executing file as program**, or `chmod +x` in a terminal) and run it. The launcher and the game are inside.
 3. Everything else works as on Windows: press **Play**, and choose your disc image the first time.
 
-The game, your disc image, the settings and your memory cards go in `~/.local/share/muppet_racemania`. The AppImage updates itself like the Windows version, and **Add to Steam** on Home puts it in your Steam library with its artwork. It hasn't been tried on a Steam Deck yet, so please tell us how it goes.
+The game, your disc image, the settings and your memory cards go in `~/.local/share/muppet_racemania`. It needs a recent distribution (glibc 2.38, such as Ubuntu 24.04 or newer). The AppImage updates itself like the Windows version, and **Add to Steam** on Home puts it in your Steam library with its artwork. It hasn't been tried on a Steam Deck yet, so please tell us how it goes.
 
 ### Which discs you need
 
@@ -84,7 +85,7 @@ Everything is set up before the game starts, with a controller, the keyboard or 
 
 ### Home
 - The game's artwork, whether it's **ready to play**, and its version
-- **Settings** for the launcher
+- **Settings** for the launcher, and **Other TRG Projects**
 - **Add to Steam**: adds the game to your Steam library as a non Steam game, with its own artwork, and switches Steam Input off for it so your controller keeps working. Steam closes for a moment while it's added and opens again afterwards
 - **Discord**: joins the official server
 - Plays with a **controller**, the **keyboard** or the **mouse**, with interface sounds
@@ -107,7 +108,7 @@ Everything is set up before the game starts, with a controller, the keyboard or 
 <td valign="middle">
 
 ### Install from your own disc
-- **Choose your disc image**, or drop it on the window
+- The launcher **finds disc images** on your PC by itself, or you **choose the file** or drop it on the window
 - A card shows **exactly which discs work**: serial, size, SHA1, MD5 and CRC32
 - It checks the disc really is this game, then copies it with a progress bar
 
@@ -150,6 +151,16 @@ Everything is set up before the game starts, with a controller, the keyboard or 
 </td>
 <td width="55%"><img src="docs/images/launcher-controller.jpg" alt="Controller page"></td>
 </tr>
+<tr>
+<td><img src="docs/images/launcher-projects.jpg" alt="Other TRG Projects"></td>
+<td valign="middle">
+
+### Other TRG Projects
+- The other **TekRantGaming** ports, with their artwork and a link to each
+- **King Kong Recompiled** downloads and plays right from here
+
+</td>
+</tr>
 </table>
 
 ### Saves and updates
@@ -160,7 +171,7 @@ Everything is set up before the game starts, with a controller, the keyboard or 
 
 | | PlayStation | PC |
 | --- | :---: | :---: |
-| Resolution | 512 x 240 | your screen, up to 4K |
+| Resolution | about 512 x 240 | your screen, up to 4K |
 | Picture | 4:3 | 16:9 with a wider view, or 4:3 |
 | Frame rate | 30 fps (25 in Europe), often lower | 30 or **60** (25 or 50 in Europe) |
 | Draw distance | short | up to 2x |

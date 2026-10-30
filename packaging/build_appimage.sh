@@ -45,6 +45,9 @@ strip --strip-unneeded "$APPDIR/usr/bin/MuppetRaceMania"
 
 # The C++ runtime for older distributions (AppRun decides), and the launcher's font (Noto Sans, OFL).
 for lib in libstdc++.so.6 libgcc_s.so.1; do cp -L "/usr/lib/x86_64-linux-gnu/$lib" "$APPDIR/usr/lib/"; done
+# The game also needs libOpenGL, which some systems leave out (AppRun decides).
+mkdir -p "$APPDIR/usr/lib/gl"
+cp -L /usr/lib/x86_64-linux-gnu/libOpenGL.so.0 "$APPDIR/usr/lib/gl/"
 mkdir -p "$APPDIR/usr/share/fonts" "$APPDIR/usr/share/licenses/noto-sans"
 cp "$TRG/launcher2/linux/fonts/"NotoSans-*.ttf "$APPDIR/usr/share/fonts/"
 cp "$TRG/launcher2/linux/fonts/OFL.txt" "$APPDIR/usr/share/licenses/noto-sans/"
@@ -111,6 +114,8 @@ SYS_CXX="$(ldconfig -p 2>/dev/null | awk '/libstdc\+\+\.so\.6 .*x86-64/ {print $
 if [ -z "$SYS_CXX" ] || ! grep -q GLIBCXX_3.4.32 "$SYS_CXX" 2>/dev/null; then
   export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 fi
+ldconfig -p 2>/dev/null | grep -q 'libOpenGL\.so\.0 .*x86-64' ||
+  export LD_LIBRARY_PATH="$HERE/usr/lib/gl${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$HERE/usr/bin/MuppetRaceMania" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
